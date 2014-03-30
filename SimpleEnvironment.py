@@ -21,35 +21,46 @@ class SimpleEnvironment(object):
         table.SetTransform(table_pose)
 
     def GetSuccessors(self, node_id):
-
-        successors = []
-
-        # TODO: Here you will implement a function that looks
-        #  up the configuration associated with the particular node_id
-        #  and return a list of node_ids that represent the neighboring
-        #  nodes
-        
+	coord = NodeIdToGridCoord(node_id)
+	num_dof = len(coord)
+	successors = []
+	for i in range(num_dof):
+	    new_coord = coord
+	    if coord[i] > 0:
+		new_coord[i] = coord[i] - 1
+		new_config = GridCoordToConfiguration(new_coord)
+		if Collides(new_config) == False:
+		    new_node = GridCoordToNodeId(new_coord)
+		    successors.append(new_node)
+	    if coord[i] < self.numCells[i]:
+		new_coord[i] = coord[i] + 1
+		new_config = GridCoordToConfiguration(new_coord)
+		if Collides(new_config) == False:
+		    new_node = GridCoordToNodeId(new_coord)
+		    successors.append(new_node)
         return successors
 
     def ComputeDistance(self, start_id, end_id):
-
-        dist = 0
-
-        # TODO: Here you will implement a function that 
-        # computes the distance between the configurations given
-        # by the two node ids
-
+	# manhattan distance
+        coord1 = NodeIdToGridCoord(start_id)
+	coord2 = NodeIdToGridCoord(end_id)
+	num_dof = len(coord1)
+	dist = 0
+	for i in range(num_dof):
+	    dist = dist + abs(coord1[i] - coord2[i])
         return dist
 
     def ComputeHeuristicCost(self, start_id, goal_id):
-        
-        cost = 0
-
-        # TODO: Here you will implement a function that 
-        # computes the heuristic cost between the configurations
-        # given by the two node ids
-
+        cost = ComputeDistance(start_id, end_id)
         return cost
+
+    def Collides(self, config)
+	T - self.robot.GetTransform()
+	Tnew = T
+	Tnew[[0,1],3] = config
+	env = self.robot.GetEnv()
+	self.robot.SetTransform(Tnew)
+	return env.CheckCollision(self.robot, env.GetKinBody('conference_table'))
 
     def InitializePlot(self, goal_config):
         self.fig = pl.figure()
@@ -82,5 +93,3 @@ class SimpleEnvironment(object):
                 [sconfig[1], econfig[1]],
                 'k.-', linewidth=2.5)
         pl.draw()
-
-        
