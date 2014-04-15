@@ -22,8 +22,26 @@ def main(robot, planning_env, planner):
     else:
         goal_config = numpy.array([3.0, 0.0])
 
-    plan = planner.Plan(start_config, goal_config)
-    traj = robot.ConvertPlanToTrajectory(plan)
+    start_config_node = planning_env.discrete_env.ConfigurationToNodeId(start_config)  #converted to node id's because they cool
+    goal_config_node  = planning_env.discrete_env.ConfigurationToNodeId(goal_config)  
+    
+    start = time.time()
+    plan = planner.Plan(start_config_node, goal_config_node)
+    plantime = time.time() - start
+    print "plantime: ", plantime
+    print("Original Path Length: {:.3f}".format(planning_env.ComputePathLength(plan)))
+    print("Original Path Nodes: " + str(len(plan)))
+
+    if args.planner == 'hrrt':
+	plan_short = planning_env.ShortenPath(plan)
+	plantime = time.time() - start
+	print "plantime with shortening: ", plantime
+        print("Shortened Path Length: {:.3f}".format(planning_env.ComputePathLength(planning_env.ShortenPath(plan))))
+        print("Shortened Path Nodes: " + str(len(plan_short)))
+	traj = robot.ConvertPlanToTrajectory(plan_short)
+
+    else:
+        traj = robot.ConvertPlanToTrajectory(plan)
 
     raw_input('Press any key to execute trajectory')
     robot.ExecuteTrajectory(traj)

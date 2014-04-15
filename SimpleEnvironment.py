@@ -1,5 +1,7 @@
 import numpy
 import pylab as pl
+import copy 
+import time
 from DiscreteEnvironment import DiscreteEnvironment
 
 class SimpleEnvironment(object):
@@ -8,8 +10,7 @@ class SimpleEnvironment(object):
         self.robot = herb.robot
         self.lower_limits = [-5., -5.]
         self.upper_limits = [5., 5.]
-        self.boundary_limits = [[-5., -5.], [5., 5.]] # for hRRT
-
+	self.boundary_limits = [[-5., -5.], [5., 5.]]
         self.discrete_env = DiscreteEnvironment(resolution, self.lower_limits, self.upper_limits)
         self.resolution   = resolution
         self.num_cells = self.discrete_env.num_cells
@@ -33,7 +34,7 @@ class SimpleEnvironment(object):
 	coord = self.discrete_env.NodeIdToGridCoord(node_id)
 	cells = self.num_cells
 	successors_node  = []
-	for i in range(len(coord)):
+	for i in range(len(coord))[::-1]:
 		coord[i] = coord[i]+1
 		if coord[i] >= 0 and coord[i] <= cells[i]-1:    #number of cells is x, but index ends at x-1
 		    if not self.Collides(self.discrete_env.GridCoordToConfiguration(coord)):
@@ -44,6 +45,30 @@ class SimpleEnvironment(object):
 			successors_node.append(self.discrete_env.GridCoordToNodeId(coord))
 	        coord[i] = coord[i]+1		    
 	return successors_node
+
+
+
+    def GetSuccessorsCord(self, coord):
+	cells = self.num_cells
+	successors_node  = []
+	for i in range(len(coord)):
+		coord[i] = coord[i]+1
+		if coord[i] >= 0 and coord[i] <= cells[i]-1:    #number of cells is x, but index ends at x-1
+		    if not self.Collides(self.discrete_env.GridCoordToConfiguration(coord)):
+                        temp = copy.copy(coord)
+			successors_node.append(temp)
+		coord[i] = coord[i]-2
+		if coord[i] >= 0 and coord[i] <= cells[i]-1:    #number of cells is x, but index ends at x-1
+		    if not self.Collides(self.discrete_env.GridCoordToConfiguration(coord)):
+			temp = copy.copy(coord)
+			successors_node.append(temp)
+	        coord[i] = coord[i]+1		    
+#	import IPython
+#	IPython.embed()
+
+	return successors_node
+
+
 
 
     def ComputeDistance(self, start_id, end_id):
@@ -59,10 +84,29 @@ class SimpleEnvironment(object):
         return numpy.linalg.norm(numpy.array(coord1)-numpy.array(coord2))
 
 
+    def ComputeDistanceCord(self, coord1, coord2):
+	# Euclidian distance
+#        coord1 = self.discrete_env.NodeIdToGridCoord(start_id)
+#	coord2 = self.discrete_env.NodeIdToGridCoord(end_id)
+#	num_dof = len(coord1)
+#	dist = 0
+#	for i in range(num_dof):
+#	    dist = dist + abs(coord1[i] - coord2[i]) 
+#The actual path will be the euclidian distance,(this wont work in in case we take 8 neighbours)
+       # print "The coord1 is " , coord1, " the coord2 is" , coord2
+        return numpy.linalg.norm(numpy.array(coord1)-numpy.array(coord2))
+
+
     def ComputeHeuristicCost(self, start_id, goal_id):
         coord1 = self.discrete_env.NodeIdToGridCoord(start_id)
 	coord2 = self.discrete_env.NodeIdToGridCoord(goal_id)
         return numpy.linalg.norm(numpy.array(coord1)-numpy.array(coord2))
+
+    def ComputeHeuristicCostCord(self, coord1, coord2):
+#        coord1 = self.discrete_env.NodeIdToGridCoord(start_id)
+#	coord2 = self.discrete_env.NodeIdToGridCoord(goal_id)
+	return numpy.sum(numpy.fabs(numpy.array(coord1)-numpy.array(coord2)))
+       # return numpy.linalg.norm(numpy.array(coord1)-numpy.array(coord2))
 
     def Collides(self, config):                        #remember to pass the configuration. and note this is only in simple case
 	T = self.robot.GetTransform()
@@ -84,6 +128,13 @@ class SimpleEnvironment(object):
 		bad_list.append([self.discrete_env.ConfigurationToNodeId([p_obj[0]+e_obj[0]+e_bot[0],lin_y[i]]),-20,-20,-20,-20])
         return bad_list
 
+    def ComputePathLength(self, path):      
+        i = 1
+        length = 0.0
+        while i < len(path):
+            length += numpy.linalg.norm(numpy.array(path[i-1])-numpy.array(path[i]))
+            i += 1
+        return length
 
 ############################# for hRRT ################################
     def GenerateRandomConfiguration(self):
@@ -116,16 +167,9 @@ class SimpleEnvironment(object):
         self.robot.SetTransform(T)
         return not self.robot.GetEnv().CheckCollision(self.robot)
 
-    def ComputePathLength(self, path):      
-        i = 1
-        length = 0.0
-        while i < len(path):
-            length += self.ComputeDistance(path[i-1], path[i])
-            i += 1
-        return length
-
     def ShortenPath(self, path, timeout=5.0):
-        start = end = time.time()
+        start = time.time()
+	end = start
         lastPath = []
 
         # stop when there's no more shortening to be done 
@@ -146,7 +190,8 @@ class SimpleEnvironment(object):
             if (time.time() - start) > timeout: break
         return path
 
-################### for Visualization ##########################
+
+
     def InitializePlot(self, goal_config):  #default
         self.fig = pl.figure()
         pl.xlim([self.lower_limits[0], self.upper_limits[0]])
@@ -172,6 +217,8 @@ class SimpleEnvironment(object):
                      
         pl.ion()
         pl.show()
+
+
         
     def PlotEdge(self, sconfig, econfig):   #default
         pl.plot([sconfig[0], econfig[0]],
